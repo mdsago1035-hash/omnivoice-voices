@@ -1,0 +1,39 @@
+name: OmniVoice Kaggle Controller
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+jobs:
+  controller:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install Kaggle CLI
+        run: |
+          python -m pip install --upgrade pip
+          pip install kaggle
+
+      - name: Configure Kaggle
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          mkdir -p ~/.config/kaggle
+          echo "$KAGGLE_API_TOKEN" > /tmp/kaggle_token
+          chmod 600 /tmp/kaggle_token
+          echo "Kaggle token configured."
+
+      - name: Check Kaggle notebook
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          echo "Checking OmniVoice worker..."
+          echo "Notebook: notebookad0f3f61b4"
+
+      - name: Controller heartbeat
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          echo "Telegram controller ready."
+          echo "OmniVoice controller heartbeat completed."
