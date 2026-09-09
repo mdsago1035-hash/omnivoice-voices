@@ -13,27 +13,53 @@ jobs:
       - name: Install Kaggle CLI
         run: |
           python -m pip install --upgrade pip
-          pip install kaggle
+          pip install -q kaggle
 
       - name: Configure Kaggle
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
         run: |
-          mkdir -p ~/.config/kaggle
-          echo "$KAGGLE_API_TOKEN" > /tmp/kaggle_token
-          chmod 600 /tmp/kaggle_token
-          echo "Kaggle token configured."
+          echo "Kaggle API configured."
 
-      - name: Check Kaggle notebook
+      - name: Check worker status
+        id: status
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
         run: |
-          echo "Checking OmniVoice worker..."
-          echo "Notebook: notebookad0f3f61b4"
+          set +e
 
-      - name: Controller heartbeat
+          STATUS=$(kaggle kernels status mdsago1035-hash/notebookad0f3f61b4 2>&1)
+
+          echo "$STATUS"
+
+          if echo "$STATUS" | grep -qi "RUNNING"; then
+            echo "running=true" >> "$GITHUB_OUTPUT"
+            echo "🟢 OmniVoice worker is RUNNING."
+          else
+            echo "running=false" >> "$GITHUB_OUTPUT"
+            echo "🔴 OmniVoice worker is not RUNNING."
+          fi
+
+      - name: Restart Kaggle worker
+        if: steps.status.outputs.running == 'false'
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
         run: |
-          echo "Telegram controller ready."
-          echo "OmniVoice controller heartbeat completed."
+          echo "🚀 Starting OmniVoice Kaggle worker..."
+
+          rm -rf /tmp/omnivoice_worker
+          mkdir -p /tmp/omnivoice_worker
+
+          kaggle kernels pull \
+            mdsago1035-hash/notebookad0f3f61b4 \
+            -p /tmp/omnivoice_worker \
+            -m
+
+          kaggle kernels push \
+            -p /tmp/omnivoice_worker
+
+          echo "✅ Kaggle worker start triggered."
+
+      - name: Controller finished
+        run: |
+          echo "🟢 OmniVoice Controller completed successfully."
