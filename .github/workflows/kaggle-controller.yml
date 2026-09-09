@@ -1,0 +1,51 @@
+name: Kaggle Auto Controller
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+jobs:
+  controller:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install Kaggle CLI
+        run: pip install -U kaggle
+
+      - name: Configure Kaggle
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          echo "🟢 Kaggle authentication ready"
+
+      - name: Check Kaggle Worker
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          set +e
+
+          echo "🔎 Checking Kaggle Worker..."
+
+          STATUS=$(kaggle kernels status sagor10/notebook16dd24d0ef 2>&1)
+
+          echo "$STATUS"
+
+          if echo "$STATUS" | grep -qi "running"; then
+            echo "🟢 Kaggle Worker already RUNNING"
+            exit 0
+          fi
+
+          echo "🔴 Worker is not running"
+          echo "🚀 Starting Kaggle Worker..."
+
+          rm -rf kaggle_worker
+          mkdir -p kaggle_worker
+
+          kaggle kernels pull sagor10/notebook16dd24d0ef \
+            -p kaggle_worker \
+            -m
+
+          kaggle kernels push -p kaggle_worker
+
+          echo "✅ Start command sent successfully"
